@@ -1,0 +1,226 @@
+/*
+
+Jeffrey Song
+
+*/
+
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// ----- for ultrasonic sensors -----
+#define trigPin 10 // set trigPin to pin #9
+#define echoPin 11 // set echoPin to pin #10
+
+#define trig2Pin 8 // set trig2pin to pin #8
+#define echo2Pin 9 // set echo2Pin to pin #9
+// ----- end -----
+
+// ----- for temp -----
+#define TEMP_PIN A0
+// ----- end -----
+
+// ----- for oled -----
+#define OLED_RESET 4
+Adafruit_SSD1306 display(OLED_RESET);
+// ----- end -----
+
+// ----- for motor -----
+#define motorPin 3
+
+int amount = 6;
+String occu = "";
+
+void setup() {
+  
+  Serial.begin(9600);
+
+// ----- ultrasonic sensors -----
+  pinMode(trigPin, OUTPUT); // set trigPin as output
+  pinMode(echoPin, INPUT); // set echoPin as input
+
+  pinMode(trig2Pin, OUTPUT); // set trig2Pin as output
+  pinMode(echo2Pin, INPUT); // set echo2Pin as input
+// ----- end -----
+
+// ----- oled -----
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C); //initialize with the I2C addr 0x3C (128x64)
+  display.clearDisplay();
+// ----- end -----
+
+// ----- motor -----
+  pinMode(motorPin, OUTPUT); // set to output
+}
+
+void loop() {
+
+// ----- Distance -----
+
+  // --- distance outside ---
+  float duration;
+  float distance_cm;
+  float distance_in;
+
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  duration = pulseIn(echoPin, HIGH);
+
+  distance_cm = (duration/2) / 29.1;
+  distance_in = (duration/2) / 73.914;
+  // --- end ---
+
+  // --- distance inside ---
+  float duration2;
+  float distance2_cm;
+  float distance2_in;
+
+  digitalWrite(trig2Pin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig2Pin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig2Pin, LOW);
+
+  duration2 = pulseIn(echo2Pin, HIGH);
+
+  distance2_cm = (duration2/2) / 29.1;
+  distance2_in = (duration2/2) / 73.914;
+
+  // --- end ---
+// ----- end -----
+
+/*
+// ----- temperature -----
+  int pinValue = analogRead(TEMP_PIN);
+  double voltage = pinValue * 0.0049;
+  double tempC = (voltage - 0.5) * 100.0;
+  double tempF = (tempC*1.8) + 32;
+
+  Serial.print("Temperature: ");
+  Serial.println(tempF);
+// ----- end -----
+*/
+
+// ----- code -----
+  //int amount = 0;
+  if (amount == 0){
+    occu ="Empty";
+  }
+  if ((amount > 0 ) && (amount < 4)){
+    occu = "Low";
+  }
+  if ((amount > 3) && (amount < 7)){
+    occu = "Medium";
+  }
+  if ((amount > 6) && (amount < 10)){
+    occu = "High";
+  }
+  if (amount == 10){
+    occu = "Full";
+  }
+
+  // --- display ---
+  display.setTextColor(WHITE);
+  display.setTextSize(1);
+  display.setCursor(0,0);
+  display.print("Number of people: ");
+  display.print(amount);
+
+  display.setCursor(0,10);
+  display.print("Occupany level: ");
+  display.setCursor(0,18);
+  display.print(occu);
+
+
+  // --- exit ---
+  if (distance2_in < 5 ) {
+
+    display.clearDisplay();
+    display.setTextColor(WHITE);
+    display.setTextSize(1);
+    display.setCursor(0,0);
+    display.print("Have A");
+    display.setCursor(0,10);
+    display.print("Nice Day");
+    display.display();
+
+    digitalWrite(motorPin, HIGH);
+    delay(2000);
+    digitalWrite(motorPin, LOW);
+
+    amount--; 
+    delay(2000);
+  }
+
+  // --- enter when room ---
+  if ((distance_in < 5) && (amount < 10)) {
+    display.clearDisplay();
+    display.setTextColor(WHITE);
+    display.setTextSize(1);
+    display.setCursor(0,0);
+    display.print("Touch Thermometer");
+    display.setCursor(0,10);
+    display.print("For Eight Seconds");
+    display.display();
+
+    delay(8000);
+
+    int pinValue = analogRead(TEMP_PIN);
+    double voltage = pinValue * 0.0049;
+    double tempC = (voltage - 0.5) * 100.0;
+    double tempF = (tempC*1.8) + 32;
+
+    if (tempF < 79){
+      display.clearDisplay();
+      display.setTextColor(WHITE);
+      display.setTextSize(1);
+      display.setCursor(0,0);
+      display.print("You may enter");
+      display.display();
+      Serial.print("Temp: ");
+      Serial.println(tempF);
+
+      amount++;
+
+      digitalWrite(motorPin, HIGH);
+      delay(2000);
+      digitalWrite(motorPin, LOW);
+
+    } else {
+      display.clearDisplay();
+      display.setTextColor(WHITE);
+      display.setTextSize(1);
+      display.setCursor(0,0);
+      display.print("Your Temperature");
+      display.setCursor(0,10);
+      display.print("Is Too High");
+      display.display();
+      Serial.print("Temp: ");
+      Serial.println(tempF);
+    }
+    delay(2000);
+  }
+
+  if ((distance_in < 5) && (amount == 10)) {
+    display.clearDisplay();
+    display.setTextColor(WHITE);
+    display.setTextSize(1);
+    display.setCursor(0,0);
+    display.print("Room is full");
+    display.setCursor(0,10);
+    display.print("No More Entry");
+    display.display();
+
+    delay(1000);
+  }
+
+  display.display();
+  // --- end ---
+
+  delay(500);
+  display.clearDisplay();
+}
